@@ -111,6 +111,54 @@ def create_app(test_config=None):
     the form will clear and the question will appear at the end of the last page
     of the questions list in the "List" tab.  
     '''
+    
+    @app.route("/questions", methods=["POST"])
+    def new_question():
+        data = request.get_json()
+        if "searchTerm" in data:
+            questions = Question.query.filter(
+                func.lower(Question.question).like(
+                    "%{}%".format(data["searchTerm"].lower())
+                )
+            ).all()
+            
+            formatted_questions = list(map(Question.format, questions))
+            return jsonify({
+              "questions": formatted_questions,
+              "total_questions": len(formatted_questions),
+              "current_category": None
+              })
+            
+        else:
+            if not (
+              data["question"]
+              and data["answer"]
+              and data["category"]
+              and data["difficulty"]
+              ):
+              abort(422)
+              error = False
+            try:
+              question = Question(
+                question=data["question"],
+                answer=data["answer"],
+                category=data["category"],
+                difficulty=data["difficulty"]
+              )
+              question.insert()
+              
+            except Exception:
+              error = True
+              db.session.rollback()
+              print(exc.info())
+              
+            finally:
+              db.session.close()
+              if error:
+                    abort(500)
+              else:
+                    result = {"success": True}
+                    return jsonify(result)
 
     '''
     @TODO: 
@@ -131,6 +179,28 @@ def create_app(test_config=None):
     categories in the left column will cause only questions of that 
     category to be shown. 
     '''
+    
+    @app.route("/categories/<int:category_id>/questions", methods=["GET"])
+    def get_questions_category(category_id):
+        questions = list(
+            map(
+                Question.format,
+                Question.query.filter(
+                    (Question.category).like("%{}%".format(category_id))
+                ).all(),
+            )
+        )
+
+        category = Category.query.get(category_id)
+        if not category:
+            abort(404)
+
+        result = {
+            "questions": questions,
+            "total_questions": len(questions),
+            "current_category": category_id,
+        }
+        return jsonify(result)
 
 
     '''
