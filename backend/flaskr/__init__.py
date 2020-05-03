@@ -16,7 +16,7 @@ def create_app(test_config=None):
     '''
     @TODO: Set up CORS. Allow '*' for origins. Delete the sample route after completing the TODOs
     '''
-    cors = CORS(app, resources={r"*/api/*": {"origins": "*"}})
+    cors = CORS(app, resources={r"/*": {"origins": "*"}})
     
     '''
     @TODO: Use the after_request decorator to set Access-Control-Allow
@@ -58,8 +58,9 @@ def create_app(test_config=None):
     @app.route('/questions', methods=['GET'])
     def get_questions():
         page = request.args.get('page', 1, type=int)
-        start = (page - 1) * 10
-        end = start + 10
+        start = (page - 1) * QUESTIONS_PER_PAGE
+        end = start + QUESTIONS_PER_PAGE
+        
         questions = Question.query.all()
         formatted_questions = [Question.format() for Question in questions]
         
@@ -75,6 +76,30 @@ def create_app(test_config=None):
     TEST: When you click the trash icon next to a question, the question will be removed.
     This removal will persist in the database and when you refresh the page. 
     '''
+    @app.route("/questions/<int:question_id>", methods=["DELETE"])
+    def delete_question(question_id):
+        error = False
+        try:
+            question = Question.query.get(question_id)
+            if not question:
+                abort(404)
+            question.delete()
+        except Exception:
+            error = True
+            db.session.rollback()
+            print(exc.info())
+        finally:
+            db.session.close()
+            if error:
+                abort(500)
+            else:
+                result = {
+                  "success": True, 
+                  "deleted_question": question_id
+                  }
+                print(result)
+                return jsonify(result)
+    
 
     '''
     @TODO: 
@@ -119,12 +144,68 @@ def create_app(test_config=None):
     one question at a time is displayed, the user is allowed to answer
     and shown whether they were correct or not. 
     '''
+    
+    @app.route("/quizzes", methods=["POST"])
+    def get_quiz():
+          data = request.get_json()
+          prev_qs = list(data["previous_questions"])
+          quiz_category = int(data["quiz_category"]["id"])   
+
+          if quiz_category:   
+
+              if not Category.query.get(quiz_category):
+                  abort(404)
+              get_questions = Question.query.filter(
+                  (Question.category).like("%{}%".format(quiz_category)),
+                  Question.id.notin_(prev_qs),
+              ).all()
+          else:
+              get_questions = Question.query.filter(
+                  Question.id.notin_(prev_qs)).all()   
+
+          if len(get_questions) == 0:
+              return jsonify(None)
+          else:
+              questions = list(map(Question.format, get_questions))
+              question = random.choice(questions)
+              return jsonify(question)
 
     '''
     @TODO: 
     Create error handlers for all expected errors 
     including 404 and 422. 
     '''
+    @app.errorhandler(400)
+    def not_found(error):
+          return jsonify({
+            "success": False, 
+            "error": 400,
+            "message": "Bad request."
+            }), 400
+
+    @app.errorhandler(404)
+    def not_found(error):
+          return jsonify({
+            "success": False, 
+            "error": 404,
+            "message": "Not found."
+            }), 404
+  
+    @app.errorhandler(422)
+    def unprocessable(error):
+          return jsonify({
+            "success": False,
+            "error": 422,
+            "message": "We couldn't process your request.",
+            }), 422
+  
+    @app.errorhandler(500)
+    def unprocessable(error):
+          return jsonify({
+            "success": False, 
+            "error": 500,
+            "message": "Something went wrong."
+            }), 500
     
     return app
 
