@@ -24,7 +24,7 @@ def create_app(test_config=None):
     @app.after_request
     def after_request(response):
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,true')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PATCH,POST,DELETE,OPTIONS')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, PATCH, POST, DELETE, OPTIONS')
         return response
 
     '''
@@ -34,12 +34,13 @@ def create_app(test_config=None):
     '''
     @app.route('/categories', methods=['GET'])
     def get_categories():
-        categories = Category.query.all()
-        formatted_categories = [Category.format() for Category in categories]
+        categories = Category.query.order_by(Category.id).all()
+        formatted_categories = {Category.id: Category.type for Category in categories}
         
         return jsonify({
           'success': True,
-          'categories': formatted_categories
+          'categories': formatted_categories,
+          'total_categories': len(Category.query.all())
         })
           
 
@@ -61,12 +62,18 @@ def create_app(test_config=None):
         start = (page - 1) * QUESTIONS_PER_PAGE
         end = start + QUESTIONS_PER_PAGE
         
-        questions = Question.query.all()
-        formatted_questions = [Question.format() for Question in questions]
-        
+        questions = list(map(Question.format, Question.query.all()))
+        total_questions = len(questions)
+        questions = questions[start:end]
+
+        categories = get_categories().get_json()["categories"]
+
         return jsonify({
-          'success': True,
-          'questions': formatted_questions[start:end]
+            "success": True,
+            "questions": questions,
+            "total_questions": total_questions,
+            "current_category": None,
+            "categories": categories,
         })
 
     '''
