@@ -100,12 +100,10 @@ def create_app(test_config=None):
             if error:
                 abort(500)
             else:
-                result = {
-                  "success": True, 
-                  "deleted_question": question_id
-                  }
-                print(result)
-                return jsonify(result)
+                return jsonify({
+                    "success": True, 
+                    "deleted_question": question_id
+                    })
     
 
     '''
@@ -124,10 +122,7 @@ def create_app(test_config=None):
         data = request.get_json()
         if "searchTerm" in data:
             questions = Question.query.filter(
-                func.lower(Question.question).like(
-                    "%{}%".format(data["searchTerm"].lower())
-                )
-            ).all()
+                func.lower(Question.question).like("%{}%".format(data["searchTerm"].lower()))).all()
             
             formatted_questions = list(map(Question.format, questions))
             return jsonify({
@@ -164,8 +159,9 @@ def create_app(test_config=None):
               if error:
                     abort(500)
               else:
-                    result = {"success": True}
-                    return jsonify(result)
+                    return jsonify({
+                        "success": True
+                    })
 
     '''
     @TODO: 
