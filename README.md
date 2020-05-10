@@ -42,3 +42,18 @@ The `./frontend` directory contains a complete React frontend to consume the dat
 Pay special attention to what data the frontend is expecting from each API response to help guide how you format your API. 
 
 [View the README.md within ./frontend for more details.](./frontend/README.md)
+
+
+## How to run project
+
+1. Install requirements
+pip install -r requirements.txt
+
+2. load database
+psql trivia < trivia.psql
+
+3. Activate virtual development environment.
+export FLASK_APP=flaskr
+export FLASK_ENV=development
+flask run
+
