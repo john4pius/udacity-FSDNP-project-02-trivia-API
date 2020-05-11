@@ -37,17 +37,20 @@ def create_app(test_config=None):
     Create an endpoint to handle GET requests
     for all available categories.
     '''
+
     @app.route('/categories', methods=['GET'])
     def get_categories():
-        categories = Category.query.order_by(Category.id).all()
-        formatted_categories = {Category.id: Category.type for Category
-                                in categories}
+        categories = list(map(Category.format,
+                              Category.query.order_by(
+                                Category.id.asc()).all()))
+        data = {}
+        for category in categories:
+            data.update({category["id"]: category["type"]})
 
         return jsonify({
-          'success': True,
-          'categories': formatted_categories,
-          'total_categories': len(Category.query.all())
-        })
+            "success": True,
+            "categories": data
+            })
 
     '''
     @TODO:
@@ -226,12 +229,11 @@ def create_app(test_config=None):
         if not category:
             abort(404)
 
-        result = {
+        return jsonify({
             "questions": questions,
             "total_questions": len(questions),
             "current_category": category_id,
-        }
-        return jsonify(result)
+            })
 
     '''
     @TODO:
@@ -247,28 +249,37 @@ def create_app(test_config=None):
 
     @app.route("/quizzes", methods=["POST"])
     def get_quiz():
-        data = request.get_json()
-        prev_qs = list(data["previous_questions"])
-        quiz_category = int(data["quiz_category"]["id"])
+        response_quiz = request.get_json()
+        previous_questions = response_quiz['previous_questions']
+        category_id = response_quiz["quiz_category"]["id"]
+        if category_id == 0:
+            if previous_questions is None:
+                questions = Question.query.all()
+            else:
+                questions = Question.query.filter(
+                    Question.id.notin_(previous_questions)).all()
 
-        if quiz_category:
-
-            if not Category.query.get(quiz_category):
-                abort(404)
-            get_questions = Question.query.filter(
-                (Question.category).like("%{}%".format(quiz_category)),
-                Question.id.notin_(prev_qs),
-            ).all()
         else:
-            get_questions = Question.query.filter(
-                Question.id.notin_(prev_qs)).all()
+            if previous_questions is None:
+                questions = Question.query.filter(
+                    Question.category == category_id).all()
+            else:
+                questions = Question.query.filter(
+                    Question.id.notin_(previous_questions),
+                    Question.category == category_id).all()
 
-        if len(get_questions) == 0:
-            return jsonify(None)
-        else:
-            questions = list(map(Question.format, get_questions))
-            question = random.choice(questions)
-            return jsonify(question)
+        if len(questions) == 0:
+            return jsonify({'question': None})
+
+        next_question = random.choice(questions).format()
+        print(next_question)
+        if next_question is None:
+            next_question = False
+
+        return jsonify({
+            'success': True,
+            'question': next_question
+        })
 
     '''
     @TODO:
