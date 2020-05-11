@@ -3,7 +3,8 @@ from flask import Flask, request, abort, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import random
-from sqlalchemy import func
+import re
+
 
 from models import setup_db, Question, Category
 
@@ -129,51 +130,20 @@ def create_app(test_config=None):
 
     @app.route("/questions", methods=["POST"])
     def new_question():
-        data = request.get_json()
-        if "searchTerm" in data:
-            questions = Question.query.filter(
-                func.lower(Question.question)
-                .like("%{}%".format(data["searchTerm"].lower()))).all()
-
-            formatted_questions = list(map(Question.format, questions))
-            return jsonify({
-              "questions": formatted_questions,
-              "total_questions": len(formatted_questions),
-              "current_category": None
-              })
-
-        else:
-            if not (
-                data["question"] and
-                data["answer"] and
-                data["category"] and
-                data["difficulty"]
-            ):
-                abort(422)
-                error = False
-            try:
-                question = Question(
-                    question=data["question"],
-                    answer=data["answer"],
-                    category=data["category"],
-                    difficulty=data["difficulty"]
-                )
-                question.insert()
-
-            except Exception:
-                error = True
-                db.session.rollback()
-                print(exc.info())
-
-            finally:
-                db.session.close()
-                if error:
-                    abort(500)
-                else:
-                    return jsonify({
-                        "success": True
-                    })
-
+        question = request.json.get('question')
+        answer = request.json.get('answer')
+        category = request.json.get('category')
+        difficulty = request.json.get('difficulty')
+        if not (question and answer and category and difficulty):
+            return abort(400,
+                         'Required question object keys missing from request '
+                         'body')
+        question_entry = Question(question, answer, category, difficulty)
+        question_entry.insert()
+        return jsonify({
+            'question': question_entry.format()
+        })
+        
     '''
     @TODO:
     Create a POST endpoint to get questions based on a search term.
@@ -187,22 +157,12 @@ def create_app(test_config=None):
 
     @app.route('/questions/search', methods=['POST'])
     def search_question():
-        searchTerm = request.get_json()['searchTerm']
-        data_searched = Question.query.filter(
-            Question.question.ilike('%{}%'.format(searchTerm))).all()
-        formatted_questions = paginate_questions(request, data_searched)
-
-        category_all = Category.query.all()
-        categories = [category.format() for category in category_all]
-        formatted_categories = {
-            k: v for category in categories for k, v in category.items()
-        }
+        search_term = request.json.get('searchTerm', '')
+        questions = [question.format() for question in Question.query.all() if
+                     re.search(search_term, question.question, re.IGNORECASE)]
         return jsonify({
-          'success': True,
-          'questions': formatted_questions,
-          'total_questions_found': len(data_searched),
-          'current_category': "",
-          'categories': formatted_categories
+            'questions': questions,
+            'total_questions': len(questions)
         })
 
     '''
@@ -216,24 +176,15 @@ def create_app(test_config=None):
 
     @app.route("/categories/<int:category_id>/questions", methods=["GET"])
     def get_questions_category(category_id):
-        questions = list(
-            map(
-                Question.format,
-                Question.query.filter(
-                    (Question.category).like("%{}%".format(category_id))
-                ).all(),
-            )
-        )
-
-        category = Category.query.get(category_id)
-        if not category:
-            abort(404)
-
+        if not category_id:
+            return abort(400, 'Invalid category id')
+        questions = [question.format() for question in
+                     Question.query.filter(Question.category == category_id)]
         return jsonify({
-            "questions": questions,
-            "total_questions": len(questions),
-            "current_category": category_id,
-            })
+            'questions': questions,
+            'total_questions': len(questions),
+            'current_category': category_id
+        })
 
     '''
     @TODO:
@@ -287,7 +238,7 @@ def create_app(test_config=None):
     including 404 and 422.
     '''
     @app.errorhandler(400)
-    def not_found(error):
+    def bad_request(error):
         return jsonify({
           "success": False,
           "error": 400,
@@ -311,7 +262,7 @@ def create_app(test_config=None):
         }), 422
 
     @app.errorhandler(500)
-    def unprocessable(error):
+    def exception_handler(error):
         return jsonify({
           "success": False,
           "error": 500,
