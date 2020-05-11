@@ -143,7 +143,7 @@ def create_app(test_config=None):
         return jsonify({
             'question': question_entry.format()
         })
-        
+
     '''
     @TODO:
     Create a POST endpoint to get questions based on a search term.
