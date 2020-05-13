@@ -1,4 +1,5 @@
-import React, { Component } from 'react';
+
+import React, {Component} from 'react';
 
 import '../stylesheets/App.css';
 import Question from './Question';
@@ -23,7 +24,7 @@ class QuestionView extends Component {
 
   getQuestions = () => {
     $.ajax({
-      url: `/questions?page=${this.state.page}`, //TODO: update request URL
+      url: `/questions?page=${this.state.page}`,
       type: "GET",
       success: (result) => {
         this.setState({
@@ -60,7 +61,7 @@ class QuestionView extends Component {
 
   getByCategory= (id) => {
     $.ajax({
-      url: `/categories/${id}/questions`, //TODO: update request URL
+      url: `/categories/${id}/questions`,
       type: "GET",
       success: (result) => {
         this.setState({
@@ -78,7 +79,7 @@ class QuestionView extends Component {
 
   submitSearch = (searchTerm) => {
     $.ajax({
-      url: `/questions`, //TODO: update request URL
+      url: `/questions/search`,
       type: "POST",
       dataType: 'json',
       contentType: 'application/json',
@@ -105,7 +106,7 @@ class QuestionView extends Component {
     if(action === 'DELETE') {
       if(window.confirm('are you sure you want to delete the question?')) {
         $.ajax({
-          url: `/questions/${id}`, //TODO: update request URL
+          url: `/questions/${id}`,
           type: "DELETE",
           success: (result) => {
             this.getQuestions();
@@ -128,7 +129,8 @@ class QuestionView extends Component {
             {Object.keys(this.state.categories).map((id, ) => (
               <li key={id} onClick={() => {this.getByCategory(id)}}>
                 {this.state.categories[id]}
-                <img className="category" src={`${this.state.categories[id]}.svg`}/>
+                <img alt={`${this.state.categories[id]} icon`} className="category"
+                     src={`${this.state.categories[id]}.svg`}/>
               </li>
             ))}
           </ul>
